@@ -1,35 +1,63 @@
-import {Client, Events, GatewayIntentBits} from 'discord.js'
+import { Client, GatewayIntentBits, REST, Routes, Events, Guild, GuildChannel } from 'discord.js'
 import dotenv from 'dotenv'
-import { OpenAIApi, Configuration} from 'openai'
+import config_slash_commands from './config/config.js'
+import { OpenAIApi, Configuration } from 'openai'
 dotenv.config()
 
+const client = new Client(
+    {
+        intents: [GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers]
+    });
+const BOT_TOKEN = process.env.BOT_TOKEN
+const CLIENT_ID = process.env.CLIENT_ID
+const PAST_MESSAGES = 5
+const WELCOME_CHANNEL_ID = process.env.WELCOME_CHANNEL_ID
+const OPENAI_KEY = process.env.OPENAI_KEY
+const BOT_CHANNEL = process.env.GUILD_CHANNEL
 const config = new Configuration({
-    apiKey: process.env.OPENAI_KEY
+    apiKey: OPENAI_KEY
 })
 
 const openai = new OpenAIApi(config)
 
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
+
+client.login(BOT_TOKEN)
+client.once(Events.ClientReady, () => {
+    console.log(`Logged in as ${client.user.tag} !`)
+    config_slash_commands(BOT_TOKEN, CLIENT_ID)
+    client.user.setStatus('online')
+    client.user.setActivity('with Sanchez')
+})
+client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+    switch (interaction.commandName) {
+        case "ping":
+            await interaction.reply('Pong!')
+            break;
+        case "owner":
+            await interaction.reply('<@985250430512681072>')
+            break;
+        case "hello":
+            await interaction.reply(`Hello, ${interaction.member.user}`)
+            break;
+        default:
+            await interaction.reply('Invalid command')
+            break;
+    }
 })
 
-client.once(Events.ClientReady, (clientUser) => {
-    console.log(`Logged in as ${clientUser.user.tag}`)
+client.on(Events.GuildMemberAdd, (m) => {
+    client.channels.cache.get(WELCOME_CHANNEL_ID).send(`${m.user}, We glad you to see here & Have a fun...`)
 })
 
-
-client.login(process.env.TOKEN)
-
-const BOT_CHANNEL = "1065660708114673764"
-const PAST_MESSAGES = 5
 
 client.on(Events.MessageCreate, async (message) => {
-    if (message.author.bot) return
-    if (message.channel.id !== BOT_CHANNEL) return
+    if (message.author.bot) return;
+    if (message.channel.id !== BOT_CHANNEL) return;
+    if(message.channel.type==="dm")return;
 
     message.channel.sendTyping()
 
@@ -37,10 +65,10 @@ client.on(Events.MessageCreate, async (message) => {
         limit: PAST_MESSAGES,
         before: message.id
     }))
-    messages = messages.map(m=>m[1])
+    messages = messages.map(m => m[1])
     messages.unshift(message)
 
-    let users = [...new Set([...messages.map(m=> m.member.displayName), client.user.username])]
+    let users = [...new Set([...messages.map(m => m.author.username), client.user.username])]
 
     let lastUser = users.pop()
 
@@ -48,7 +76,7 @@ client.on(Events.MessageCreate, async (message) => {
 
     for (let i = messages.length - 1; i >= 0; i--) {
         const m = messages[i]
-        prompt += `${m.member.displayName}: ${m.content}\n`
+        prompt += `${m.author.username}: ${m.content}\n`
     }
     prompt += `${client.user.username}:`
     console.log("prompt:", prompt)
@@ -57,12 +85,9 @@ client.on(Events.MessageCreate, async (message) => {
         prompt,
         model: "text-davinci-003",
         max_tokens: 500,
-        stop: ["end"]
+        stop: ["\n"]
     })
 
-   await response.data.choices.forEach(async (ch)=>{
-        await message.channel.send(ch.text)
-    })
-
-    
+    console.log("response", response.data.choices[0].text)
+    await message.channel.send(response.data.choices[0].text)
 })
