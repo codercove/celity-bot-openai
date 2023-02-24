@@ -3,16 +3,24 @@ import { REST, Routes } from 'discord.js'
 const config_slash_commands = (BOT_TOKEN, CLIENT_ID) => {
     const commands = [
         {
-          name: 'ping',
-          description: 'Replies with Pong!',
+          name: 'verify',
+          description: 'Replies with verification message!',
         },
         {
-            name:'owner',
-            description:'Know who made me! '
+            name:'roles',
+            description:'Replies with roles reaction message!'
         },
         {
-          name:'hello',
-          description:'Resplies with Hi, Your Name',
+          name:'dev',
+          description:'Replies with developer name!',
+        },
+        {
+          name:'avatar',
+          description:'Shows your avatar!',
+        },
+        {
+          name:'welcome',
+          description:'Know about us!'
         },
       ];
       
